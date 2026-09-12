@@ -33,20 +33,26 @@ const char UsermodDY_SV17F::_rxPin[]       PROGMEM = "rxPin";
 
 // ============================ setup / loop ============================
 
-void UsermodDY_SV17F::setup() {
+bool UsermodDY_SV17F::initUART() {
 #if defined(ARDUINO_ARCH_ESP32)
   // HardwareSerial::begin(baud, config, rxPin, txPin)
   if (txPin >= 0 || rxPin >= 0) {
     dysv17f_serial.begin(SERIAL_BAUD, SERIAL_8N1, rxPin, txPin);
-    initDone = true;
+    return true;
   }
 #else
   if (txPin >= 0) {
+    if (dysv17f_serial) delete dysv17f_serial;
     dysv17f_serial = new SoftwareSerial(rxPin, txPin);
     dysv17f_serial->begin(SERIAL_BAUD);
-    initDone = true;
+    return true;
   }
 #endif
+  return false;
+}
+
+void UsermodDY_SV17F::setup() {
+  initDone = initUART();
 
   if (initDone) {
     seedRandom();
@@ -220,6 +226,9 @@ bool UsermodDY_SV17F::readFromConfig(JsonObject& root) {
 
   uint8_t oldVolume = volume;
   uint8_t oldModule = module;
+  int8_t oldButtonPin = buttonPin;
+  int8_t oldTxPin = txPin;
+  int8_t oldRxPin = rxPin;
 
   configComplete &= getJsonValue(top[FPSTR(_enabled)], enabled, true);
   configComplete &= getJsonValue(top[FPSTR(_module)], module, MODULE_DY_SV17F);
@@ -230,10 +239,30 @@ bool UsermodDY_SV17F::readFromConfig(JsonObject& root) {
   configComplete &= getJsonValue(top[FPSTR(_txPin)], txPin, DYSV17F_DEFAULT_TX_PIN);
   configComplete &= getJsonValue(top[FPSTR(_rxPin)], rxPin, DYSV17F_DEFAULT_RX_PIN);
 
-  // push a volume change to the module right away (readFromConfig is called
-  // after saving on the Settings > Usermods page; initDone is false at boot)
-  // also re-sync the volume when the module type itself was changed
-  if (initDone && (volume != oldVolume || module != oldModule)) setVolume(volume);
+  // readFromConfig is called at boot (before setup()) and again after every
+  // save on the Settings > Usermods page. In the latter case re-apply any
+  // hardware-affecting change immediately so a reboot is not required.
+  if (initDone) {
+    if (txPin != oldTxPin || rxPin != oldRxPin) {
+      // UART pins changed: (re)start the UART on the new pins
+#if defined(ARDUINO_ARCH_ESP32)
+      dysv17f_serial.end(); // no-op if never begun
+#endif
+      initDone = initUART();
+      if (initDone) setVolume(volume);
+    } else if (volume != oldVolume || module != oldModule) {
+      // volume or protocol changed: push the (new) volume immediately
+      setVolume(volume);
+    }
+
+    if (buttonPin != oldButtonPin) {
+      // button pin changed: (re)configure it
+      if (buttonPin >= 0) {
+        pinMode(buttonPin, INPUT_PULLUP);
+        lastButtonState = debouncedState = digitalRead(buttonPin);
+      }
+    }
+  }
 
   return configComplete;
 }

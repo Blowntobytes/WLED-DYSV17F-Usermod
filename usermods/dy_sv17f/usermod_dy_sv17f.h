@@ -93,6 +93,7 @@ class UsermodDY_SV17F : public Usermod {
     static const char _rxPin[];
 
     // ---------------- helpers ----------------
+    bool initUART();
     void sendCmd(uint8_t cmd, uint8_t len, const uint8_t* data);
     void playTrack(uint16_t track);
     void setVolume(uint8_t vol);

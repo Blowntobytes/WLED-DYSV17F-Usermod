@@ -1,6 +1,6 @@
 {
   "name": "dy_sv17f",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "WLED usermod \"MP3 Sound Module\" for serial MP3/voice modules (DY-SV17F and JQ6500), driven by a push button (sequential or random sound effects).",
   "keywords": "wled, usermod, dy-sv17f, jq6500, mp3, voice, uart, button",
   "authors": [
