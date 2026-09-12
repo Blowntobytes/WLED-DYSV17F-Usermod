@@ -20,8 +20,9 @@
   static SoftwareSerial* dysv17f_serial = nullptr;
 #endif
 
-const char UsermodDY_SV17F::_name[]        PROGMEM = "dy_sv17f";
+const char UsermodDY_SV17F::_name[]        PROGMEM = "MP3 Sound Module";
 const char UsermodDY_SV17F::_enabled[]     PROGMEM = "enabled";
+const char UsermodDY_SV17F::_module[]      PROGMEM = "module";
 const char UsermodDY_SV17F::_volume[]      PROGMEM = "volume";
 const char UsermodDY_SV17F::_numSounds[]   PROGMEM = "numSounds";
 const char UsermodDY_SV17F::_randomMode[]  PROGMEM = "randomMode";
@@ -117,42 +118,58 @@ void UsermodDY_SV17F::triggerPlay() {
 void UsermodDY_SV17F::sendCmd(uint8_t cmd, uint8_t len, const uint8_t* data) {
   if (!initDone) return;
 
-  uint8_t frame[6]; // largest frame used here: AA CMD LEN DATA(2) SUM
-  frame[0] = 0xAA;
-  frame[1] = cmd;
-  frame[2] = len;
-  uint8_t sum = 0xAA + cmd + len;
-  for (uint8_t i = 0; i < len; i++) {
-    frame[3 + i] = data[i];
-    sum += data[i];
-  }
-  frame[3 + len] = sum & 0xFF;
-
 #if defined(ARDUINO_ARCH_ESP32)
-  dysv17f_serial.write(frame, 3 + len + 1);
+  Stream& s = dysv17f_serial;
 #else
-  if (dysv17f_serial) dysv17f_serial->write(frame, 3 + len + 1);
+  if (!dysv17f_serial) return;
+  Stream& s = *dysv17f_serial;
 #endif
+
+  if (module == MODULE_JQ6500) {
+    // JQ6500 frame: 0x7E [LEN] [CMD] [DATA...] 0xEF
+    // LEN = CMD(1) + DATA(n) + EF(1) = 2 + n ; no checksum
+    uint8_t frame[8];
+    frame[0] = 0x7E;
+    frame[1] = 2 + len;
+    frame[2] = cmd;
+    for (uint8_t i = 0; i < len; i++) frame[3 + i] = data[i];
+    frame[3 + len] = 0xEF;
+    s.write(frame, 3 + len + 1);
+  } else {
+    // DY-SV17F frame: 0xAA [CMD] [LEN] [DATA...] [SUM]
+    // SUM = (0xAA + CMD + LEN + sum(DATA)) & 0xFF
+    uint8_t frame[6]; // largest frame used here: AA CMD LEN DATA(2) SUM
+    frame[0] = 0xAA;
+    frame[1] = cmd;
+    frame[2] = len;
+    uint8_t sum = 0xAA + cmd + len;
+    for (uint8_t i = 0; i < len; i++) {
+      frame[3 + i] = data[i];
+      sum += data[i];
+    }
+    frame[3 + len] = sum & 0xFF;
+    s.write(frame, 3 + len + 1);
+  }
 }
 
 void UsermodDY_SV17F::playTrack(uint16_t track) {
   if (track < 1) track = 1;
   uint8_t data[2] = { (uint8_t)(track >> 8), (uint8_t)(track & 0xFF) }; // big-endian
-  sendCmd(CMD_PLAY, 2, data);
+  sendCmd((module == MODULE_JQ6500) ? JQ_CMD_PLAY_IDX : CMD_PLAY, 2, data);
 }
 
 void UsermodDY_SV17F::setVolume(uint8_t vol) {
   if (vol > MAX_VOLUME) vol = MAX_VOLUME;
   uint8_t data[1] = { vol };
-  sendCmd(CMD_VOLUME, 1, data);
+  sendCmd((module == MODULE_JQ6500) ? JQ_CMD_VOL_SET : CMD_VOLUME, 1, data);
 }
 
 void UsermodDY_SV17F::volumeUp() {
-  sendCmd(CMD_VOLUME_UP, 0, nullptr);
+  sendCmd((module == MODULE_JQ6500) ? JQ_CMD_VOL_UP : CMD_VOLUME_UP, 0, nullptr);
 }
 
 void UsermodDY_SV17F::volumeDown() {
-  sendCmd(CMD_VOLUME_DOWN, 0, nullptr);
+  sendCmd((module == MODULE_JQ6500) ? JQ_CMD_VOL_DN : CMD_VOLUME_DOWN, 0, nullptr);
 }
 
 void UsermodDY_SV17F::seedRandom() {
@@ -170,6 +187,9 @@ void UsermodDY_SV17F::addToJsonInfo(JsonObject& root) {
   JsonObject user = root["u"];
   if (user.isNull()) user = root.createNestedObject("u");
 
+  JsonArray mod = user.createNestedArray(FPSTR(_module));
+  mod.add(module == MODULE_JQ6500 ? F("JQ6500") : F("DY-SV17F"));
+
   JsonArray trk = user.createNestedArray(FPSTR(_name));
   trk.add(lastTrack);             // current/last requested track
   trk.add(F("track"));
@@ -185,6 +205,7 @@ void UsermodDY_SV17F::addToJsonInfo(JsonObject& root) {
 void UsermodDY_SV17F::addToConfig(JsonObject& root) {
   JsonObject top = root.createNestedObject(FPSTR(_name));
   top[FPSTR(_enabled)] = enabled;
+  top[FPSTR(_module)] = module;
   top[FPSTR(_volume)] = volume;
   top[FPSTR(_numSounds)] = numSounds;
   top[FPSTR(_randomMode)] = randomMode;
@@ -198,8 +219,10 @@ bool UsermodDY_SV17F::readFromConfig(JsonObject& root) {
   bool configComplete = !top.isNull();
 
   uint8_t oldVolume = volume;
+  uint8_t oldModule = module;
 
   configComplete &= getJsonValue(top[FPSTR(_enabled)], enabled, true);
+  configComplete &= getJsonValue(top[FPSTR(_module)], module, MODULE_DY_SV17F);
   configComplete &= getJsonValue(top[FPSTR(_volume)], volume, 25);
   configComplete &= getJsonValue(top[FPSTR(_numSounds)], numSounds, 9);
   configComplete &= getJsonValue(top[FPSTR(_randomMode)], randomMode, false);
@@ -209,12 +232,25 @@ bool UsermodDY_SV17F::readFromConfig(JsonObject& root) {
 
   // push a volume change to the module right away (readFromConfig is called
   // after saving on the Settings > Usermods page; initDone is false at boot)
-  if (initDone && volume != oldVolume) setVolume(volume);
+  // also re-sync the volume when the module type itself was changed
+  if (initDone && (volume != oldVolume || module != oldModule)) setVolume(volume);
 
   return configComplete;
 }
 
 void UsermodDY_SV17F::appendConfigData() {
+  oappend(F("addInfo('"));
+  oappend(String(FPSTR(_name)).c_str());
+  oappend(F(":module"));
+  oappend(F("',1,'MP3 module type connected to the UART pins.');"));
+
+  // dropdown for module selection
+  oappend(F("dd=addDropdown('"));
+  oappend(String(FPSTR(_name)).c_str());
+  oappend(F("','module');"));
+  oappend(F("addOption(dd,'DY-SV17F',0);"));
+  oappend(F("addOption(dd,'JQ6500',1);"));
+
   oappend(F("addInfo('"));
   oappend(String(FPSTR(_name)).c_str());
   oappend(F(":volume"));

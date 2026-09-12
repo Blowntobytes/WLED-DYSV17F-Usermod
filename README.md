@@ -1,7 +1,13 @@
-# WLED DY-SV17F Usermod
+# WLED MP3 Sound Module Usermod (DY-SV17F / JQ6500)
 
 A [WLED](https://github.com/wled/WLED) **v2 usermod** that plays sound effects
-from a **DY-SV17F** serial MP3 / voice module, driven by a physical push button.
+from a serial MP3 / voice module, driven by a physical push button. Two modules
+are supported, selectable via a dropdown on the *Settings → Usermods* page:
+
+* **DY-SV17F** — 4 MB flash, 5 W amp, `0xAA`-framed protocol (checksum)
+* **JQ6500** — `0x7E`-framed protocol (no checksum), volume 0–30
+
+The usermod is labeled **"MP3 Sound Module"** on the Usermods page.
 
 Targets WLED **v16.0.0** (the usermod is written against the v16.0.0 tag; it
 should build against later releases with only minor changes).
@@ -12,13 +18,14 @@ should build against later releases with only minor changes).
   - **sequential**: `1 → 2 → … → N → 1`
   - **random**: random track each press (no immediate repeats when possible)
 - User-configurable settings on *Settings → Usermods*, persisted in `cfg.json`:
-  `volume` (0–30), `numSounds`, `randomMode`, `buttonPin`, `txPin`, `rxPin`
+  `module`, `volume` (0–30), `numSounds`, `randomMode`, `buttonPin`, `txPin`, `rxPin`
 - Sends the configured volume to the module on boot and immediately when changed
 - Non-blocking software-debounced button (`INPUT_PULLUP`, triggers on press,
   requires release before the next press)
 - Works on **ESP32**, **ESP32-C3** (and S2/S3) and **ESP8266**
-- Uses the DY-SV17F UART protocol at **9600 baud, 8N1**
-  (`0xAA [CMD] [LEN] [DATA...] [SUM]`)
+- Protocols at **9600 baud, 8N1**:
+  - DY-SV17F: `0xAA [CMD] [LEN] [DATA...] [SUM]`
+  - JQ6500: `0x7E [LEN] [CMD] [DATA...] 0xEF` (no checksum)
 
 ## Repository layout
 
@@ -73,8 +80,8 @@ generic ESP32 (`usermods_esp32`) and ESP8266 (`nodemcuv2_usermod_dy_sv17f`).
 
 ## Documentation
 
-- Wiring (module CON1/UART mode, ESP32↔module TX/RX crossed + common GND, button),
-  configuration values and the DY-SV17F command table:
+- Wiring (DY-SV17F CON1/UART mode, ESP32↔module TX/RX crossed + common GND,
+  JQ6500 wiring, button), configuration values and both command tables:
   [usermods/dy_sv17f/readme.md](usermods/dy_sv17f/readme.md)
 
 ## License

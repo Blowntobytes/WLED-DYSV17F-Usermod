@@ -20,13 +20,18 @@ You can take a look at `EXAMPLE_v2` for some documentation and at `Temperature` 
 
 Thank you for your help :)
 
-## DY-SV17F serial MP3 / voice module (`dy_sv17f`)
+## MP3 Sound Module — DY-SV17F / JQ6500 serial MP3 module (`dy_sv17f`)
 
-A v2 usermod that plays sound effects from a [DY-SV17F](https://github.com/Blowntobytes/WLED-DYSV17F-Usermod) serial MP3 module, driven by a physical push button.
+A v2 usermod that plays sound effects from a serial MP3 module, driven by a
+physical push button. Supports **DY-SV17F** (`0xAA` protocol) and **JQ6500**
+(`0x7E` protocol), selected with a dropdown on the Usermods page. The usermod is
+labeled **"MP3 Sound Module"**.
 
 * Sequential (1 → N → 1) or random sound-effect cycling
-* Configurable volume (0-30), track count, button GPIO and UART pins on the *Settings > Usermods* page (persisted in `cfg.json`)
-* Uses the module's UART command protocol (`0xAA`-framed commands at 9600 baud, 8N1)
+* Configurable module, volume (0-30), track count, button GPIO and UART pins on
+  the *Settings > Usermods* page (persisted in `cfg.json`)
+* UART command protocol at 9600 baud, 8N1
 * Compile-time enable: `-D WLED_USERMOD_DY_SV17F`
 
-See `dy_sv17f/readme.md` for wiring, configuration and the command table, or the upstream repository <https://github.com/Blowntobytes/WLED-DYSV17F-Usermod>.
+See `dy_sv17f/readme.md` for wiring, configuration and the command tables, or the
+upstream repository <https://github.com/Blowntobytes/WLED-DYSV17F-Usermod>.

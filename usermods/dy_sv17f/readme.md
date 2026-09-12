@@ -1,12 +1,20 @@
-# WLED usermod: DY-SV17F serial MP3 / voice module
+# WLED usermod: MP3 Sound Module (DY-SV17F / JQ6500)
 
 This **v2 usermod** for [WLED](https://github.com/wled/WLED) (v16.0.0) plays sound
-effects from a **DY-SV17F** voice/MP3 module, triggered by a physical push button.
+effects from a serial MP3 / voice module, triggered by a physical push button.
+Two modules are supported, selectable with a dropdown on the
+*Settings → Usermods* page:
+
+* **DY-SV17F** — 4 MB flash, 5 W class-D amp, `0xAA`-framed UART protocol (with checksum)
+* **JQ6500** — `0x7E`-framed UART protocol (no checksum), volume 0–30
+
+(The usermod shows up on the Usermods page as **"MP3 Sound Module"**; its
+`cfg.json` key is `"MP3 Sound Module"`.)
 
 * Sequential cycling `1 → 2 → … → N → 1` or **random** track selection
   (random mode avoids immediate repeats where possible)
-* Configurable **volume**, **track count**, **button GPIO** and **UART pins**
-  on *Settings → Usermods* (persisted in `cfg.json`)
+* Configurable **module**, **volume**, **track count**, **button GPIO** and
+  **UART pins** on *Settings → Usermods* (persisted in `cfg.json`)
 * Non-blocking software-debounced button, `INPUT_PULLUP`
 * Works on **ESP32**, **ESP32-C3** (and S2/S3) and **ESP8266**
 
@@ -14,9 +22,13 @@ effects from a **DY-SV17F** voice/MP3 module, triggered by a physical push butto
 
 ## 1. How it works
 
-The usermod connects to the DY-SV17F module over **UART at 9600 baud, 8N1** and
-sends `0xAA`-framed commands to set the volume and to play a specific track.
+The usermod connects to the module over **UART at 9600 baud, 8N1** and sends the
+module's framed commands to set the volume and to play a specific track.
 Every press of the button plays the next (or a random) sound effect.
+
+* **DY-SV17F**: frames start `0xAA`, checksum `SUM = (0xAA + CMD + LEN + Σ DATA) & 0xFF`.
+* **JQ6500**: frames start `0x7E`, `LEN = 2 + datalen`, **no checksum**
+  (the format proven by the `JQ6500_Serial` library).
 
 The module never has to send anything back for these commands — the usermod only
 writes to the UART — so it also works fine (and gracefully) if the module is not
@@ -44,7 +56,9 @@ step, *not* something the firmware can change.
 > `GND`. Do not plug anything into CON2/CON3 (or bridge the pads) unless you
 > specifically want ADKEY/factory modes.
 
-### 2.2 ESP32 ↔ DY-SV17F (UART, TX/RX crossed)
+### 2.2 ESP32 ↔ module (UART, TX/RX crossed)
+
+**DY-SV17F** (CON1 = `RX`, `TX`, `VCC`, `GND`):
 
 ```
 DY-SV17F (CON1)          ESP32 (GPIO)
@@ -55,14 +69,28 @@ VCC     ------------     VIN / 5V (module takes 3.7-5V, has own 5W amp)
 GND     ------------     GND   (COMMON GROUND - mandatory)
 ```
 
+**JQ6500** (pins `RX`, `TX`, `GND`, `VCC`):
+
+```
+JQ6500                  ESP32 (GPIO)
+------                  ------------
+RX      <------------   GPIO4   (txPin, default)
+TX      ------------>   GPIO5   (rxPin, default, optional)
+VCC     ------------    VIN / 5V
+GND     ------------    GND   (COMMON GROUND - mandatory)
+```
+
 * **TX/RX must be crossed**: ESP32 `txPin` → module `RX`, module `TX` → ESP32 `rxPin`.
 * **Common GND** between the ESP32 and the module is required.
-* The DY-SV17F is 3.3V-logic compatible on CON1 (it is designed to be driven by
-  MCUs), so no level shifter is needed for the ESP32.
+* The DY-SV17F is 3.3V-logic compatible on CON1; the JQ6500 RX is *not* fully
+  5 V-tolerant — if you run it from a 5 V MCU, put a 1 kΩ resistor in series with
+  its RX. From an ESP32 (3.3 V) you can wire it directly.
 * Keep the wires short; route the speaker away from the antenna if possible.
 * On the **ESP8266** any two free GPIOs can be used via SoftwareSerial; on the
   ESP32/C3 the `txPin`/`rxPin` config is required because those UARTs are
   software-remappable (there is no fixed second UART pin mapping).
+* **Note for JQ6500**: unlike the DY-SV17F there are **no mode pads** — it is in
+  serial-control mode by default, so just wire RX/TX/GND/VCC.
 
 ### 2.3 Push button
 
@@ -126,13 +154,14 @@ out of the build.
 
 ## 4. Configuration (Settings → Usermods)
 
-The values are stored in `cfg.json` under `"um": {"dy_sv17f": {...}}` via
+The values are stored in `cfg.json` under `"um": {"MP3 Sound Module": {...}}` via
 `addToConfig()` / `readFromConfig()` and are edited on the
-*Settings → Usermods* page.
+*Settings → Usermods* page. The usermod shows as **"MP3 Sound Module"**.
 
 | Setting       | Type  | Range/Default          | Meaning |
 |---------------|-------|------------------------|---------|
 | `enabled`     | bool  | `true`                 | Master switch for the usermod |
+| `module`      | select| `DY-SV17F` / `JQ6500`   | Which MP3 module is connected to the UART pins (dropdown) |
 | `volume`      | int   | 0–30, default `25`     | Volume, sent to the module **on boot** and **immediately when changed** |
 | `numSounds`   | int   | ≥ 1, default `9`       | Number of sound effects (track count) to cycle through |
 | `randomMode`  | bool  | `false`                | `true` = random track per press (no immediate repeats), `false` = sequential `1..N..1` |
@@ -147,14 +176,17 @@ Notes:
 * `rxPin = -1` is fine: these commands only send, they never read from the module.
 * If `txPin = -1` the UART (and the usermod) stays disabled, so nothing is sent —
   this is the graceful "module not connected" case.
+* Changing `module` takes effect immediately on save (the next volume/play command
+  uses the selected protocol).
 
 Example `cfg.json` fragment:
 
 ```json
 {
   "um": {
-    "dy_sv17f": {
+    "MP3 Sound Module": {
       "enabled": true,
+      "module": 0,
       "volume": 25,
       "numSounds": 9,
       "randomMode": false,
@@ -166,9 +198,13 @@ Example `cfg.json` fragment:
 }
 ```
 
+`module`: `0` = DY-SV17F, `1` = JQ6500.
+
 ---
 
-## 5. DY-SV17F command table (as used)
+## 5. Command tables (as used)
+
+### 5.1 DY-SV17F
 
 Serial: **9600 baud, 8N1**. Frame: `0xAA [CMD] [LEN] [DATA...] [SUM]`
 where `SUM = (0xAA + CMD + LEN + Σ DATA) & 0xFF`.
@@ -193,6 +229,34 @@ Volume down:      AA 15 00 BF
 The DY-SV17F plays files from a directory such as `01.mp3` … `99.mp3` on its
 4 MB flash. File numbering must match the track numbers you cycle through
 (`numSounds` = number of files).
+
+### 5.2 JQ6500
+
+Serial: **9600 baud, 8N1**. Frame: `0x7E [LEN] [CMD] [DATA...] 0xEF`
+where `LEN = 2 + len(DATA)` (counts CMD + DATA + end byte). **No checksum.**
+(Format as implemented/tested by the `JQ6500_Serial` library.)
+
+| Command               | Frame                   | Notes |
+|-----------------------|-------------------------|-------|
+| Play track by index   | `7E 04 03 H L EF`       | Track index big-endian, 1-based |
+| Set volume            | `7E 03 06 VOL EF`       | `VOL` = 0–30 (max 30) |
+| Volume up (optional)  | `7E 02 04 EF`           | convenience; implemented but not exposed in the UI |
+| Volume down (optional)| `7E 02 05 EF`           | convenience; implemented but not exposed in the UI |
+
+**Examples**
+
+```
+Play track 1:    7E 04 03 00 01 EF
+Play track 256:  7E 04 03 01 00 EF
+Set volume 25:   7E 03 06 19 EF
+Volume up:       7E 02 04 EF
+Volume down:     7E 02 05 EF
+```
+
+The JQ6500 also loads files over USB (mini-USB to a PC appears as a drive);
+tracks are indexed by their **order in the FAT table**, not their filename —
+so copy files in the desired play order and re-sort after deleting/adding
+(use DriveSort if needed). `numSounds` must match how many files you loaded.
 
 ---
 
