@@ -221,25 +221,14 @@ void UsermodDY_SV17F::addToConfig(JsonObject& root) {
 }
 
 bool UsermodDY_SV17F::readFromConfig(JsonObject& root) {
-  JsonObject top = root[FPSTR(_name)];  // "MP3 Sound Module"
+  // Read the "MP3 Sound Module" key; if it does not exist yet, fall back to the
+  // legacy "dy_sv17f" key so an upgrade never loses the user's working settings.
+  // No migration/re-write is performed here (same behavior as v1.0.0).
+  JsonObject top = root[FPSTR(_name)];
+  if (top.isNull()) top = root["dy_sv17f"];
   bool configComplete = !top.isNull();
 
-  // One-time migration of the config that v1.0.0 saved under the legacy
-  // "dy_sv17f" key. If it exists, its values win (so an upgrade never resets
-  // the user's working settings); the legacy key is dropped, and returning
-  // false makes WLED persist the values under the new key.
-  JsonObject legacy = root["dy_sv17f"];
-  if (!legacy.isNull()) {
-    top = legacy;
-    configComplete = false;
-    root.remove("dy_sv17f");
-  }
-
   uint8_t oldVolume = volume;
-  uint8_t oldModule = module;
-  int8_t oldButtonPin = buttonPin;
-  int8_t oldTxPin = txPin;
-  int8_t oldRxPin = rxPin;
 
   configComplete &= getJsonValue(top[FPSTR(_enabled)], enabled, true);
   configComplete &= getJsonValue(top[FPSTR(_module)], module, MODULE_DY_SV17F);
@@ -250,30 +239,8 @@ bool UsermodDY_SV17F::readFromConfig(JsonObject& root) {
   configComplete &= getJsonValue(top[FPSTR(_txPin)], txPin, DYSV17F_DEFAULT_TX_PIN);
   configComplete &= getJsonValue(top[FPSTR(_rxPin)], rxPin, DYSV17F_DEFAULT_RX_PIN);
 
-  // readFromConfig is called at boot (before setup()) and again after every
-  // save on the Settings > Usermods page. In the latter case re-apply any
-  // hardware-affecting change immediately so a reboot is not required.
-  if (initDone) {
-    if (txPin != oldTxPin || rxPin != oldRxPin) {
-      // UART pins changed: (re)start the UART on the new pins
-#if defined(ARDUINO_ARCH_ESP32)
-      dysv17f_serial.end(); // no-op if never begun
-#endif
-      initDone = initUART();
-      if (initDone) setVolume(volume);
-    } else if (volume != oldVolume || module != oldModule) {
-      // volume or protocol changed: push the (new) volume immediately
-      setVolume(volume);
-    }
-
-    if (buttonPin != oldButtonPin) {
-      // button pin changed: (re)configure it
-      if (buttonPin >= 0) {
-        pinMode(buttonPin, INPUT_PULLUP);
-        lastButtonState = debouncedState = digitalRead(buttonPin);
-      }
-    }
-  }
+  // push a volume change to the module right away when changed (v1.0.0 behavior)
+  if (initDone && volume != oldVolume) setVolume(volume);
 
   return configComplete;
 }
