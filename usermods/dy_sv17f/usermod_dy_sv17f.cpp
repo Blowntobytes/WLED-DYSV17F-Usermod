@@ -221,8 +221,20 @@ void UsermodDY_SV17F::addToConfig(JsonObject& root) {
 }
 
 bool UsermodDY_SV17F::readFromConfig(JsonObject& root) {
-  JsonObject top = root[FPSTR(_name)];
+  JsonObject top = root[FPSTR(_name)];  // "MP3 Sound Module"
   bool configComplete = !top.isNull();
+
+  // migrate the config that v1.0.0 saved under the legacy "dy_sv17f" key so an
+  // upgrade does not silently reset the user's settings. Returning false makes
+  // WLED persist the migrated values under the new key and drop the old one.
+  if (top.isNull()) {
+    JsonObject legacy = root["dy_sv17f"];
+    if (!legacy.isNull()) {
+      top = legacy;
+      configComplete = false;
+      root.remove("dy_sv17f");
+    }
+  }
 
   uint8_t oldVolume = volume;
   uint8_t oldModule = module;
