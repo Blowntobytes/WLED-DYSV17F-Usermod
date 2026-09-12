@@ -1,0 +1,32 @@
+# Usermods
+
+This folder serves as a repository for usermods (custom `usermod.cpp` files)!
+
+If you have created a usermod you believe is useful (for example to support a particular sensor, display, feature...), feel free to contribute by opening a pull request!
+
+In order for other people to be able to have fun with your usermod, please keep these points in mind:
+
+* Create a folder in this folder with a descriptive name (for example `usermod_ds18b20_temp_sensor_mqtt`)  
+* Include your custom files 
+* If your usermod requires changes to other WLED files, please write a `readme.md` outlining the steps one needs to take  
+* Create a pull request!  
+* If your feature is useful for the majority of WLED users, I will consider adding it to the base code!  
+
+While I do my best to not break too much, keep in mind that as WLED is updated, usermods might break.  
+I am not actively maintaining any usermod in this directory, that is your responsibility as the creator of the usermod.
+
+For new usermods, I would recommend trying out the new v2 usermod API, which allows installing multiple usermods at once and new functions!
+You can take a look at `EXAMPLE_v2` for some documentation and at `Temperature` for a completed v2 usermod!
+
+Thank you for your help :)
+
+## DY-SV17F serial MP3 / voice module (`dy_sv17f`)
+
+A v2 usermod that plays sound effects from a [DY-SV17F](https://github.com/Blowntobytes/WLED-DYSV17F-Usermod) serial MP3 module, driven by a physical push button.
+
+* Sequential (1 → N → 1) or random sound-effect cycling
+* Configurable volume (0-30), track count, button GPIO and UART pins on the *Settings > Usermods* page (persisted in `cfg.json`)
+* Uses the module's UART command protocol (`0xAA`-framed commands at 9600 baud, 8N1)
+* Compile-time enable: `-D WLED_USERMOD_DY_SV17F`
+
+See `dy_sv17f/readme.md` for wiring, configuration and the command table, or the upstream repository <https://github.com/Blowntobytes/WLED-DYSV17F-Usermod>.
