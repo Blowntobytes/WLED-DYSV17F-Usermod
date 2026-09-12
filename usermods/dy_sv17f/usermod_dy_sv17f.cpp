@@ -57,6 +57,8 @@ void UsermodDY_SV17F::setup() {
   if (initDone) {
     seedRandom();
     setVolume(volume); // push the configured volume to the module on boot
+    lastVolumeSend = millis();
+    volumeRetries = 2; // and again shortly after, in case the module missed the first
     DEBUG_PRINTLN(F("[DY-SV17F] UART initialized, volume set"));
   } else {
     DEBUG_PRINTLN(F("[DY-SV17F] UART not initialized (txPin not set)"));
@@ -70,6 +72,15 @@ void UsermodDY_SV17F::setup() {
 
 void UsermodDY_SV17F::loop() {
   if (!enabled) return;
+
+  // non-blocking re-send of the volume shortly after boot: the DY-SV17F/JQ6500
+  // may still be powering up its UART when the first volume command is sent
+  if (volumeRetries && millis() - lastVolumeSend >= 1500) {
+    setVolume(volume);
+    lastVolumeSend = millis();
+    volumeRetries--;
+  }
+
   if (buttonPin >= 0) handleButton();
 }
 

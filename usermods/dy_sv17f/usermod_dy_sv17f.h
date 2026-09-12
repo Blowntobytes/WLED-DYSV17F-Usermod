@@ -66,6 +66,8 @@ class UsermodDY_SV17F : public Usermod {
     bool enabled = true;
     bool initDone = false;
     uint16_t lastTrack = 0;
+    unsigned long lastVolumeSend = 0;  // boot-time volume retry timing
+    uint8_t volumeRetries = 0;         // re-send volume after boot (module may miss the first)
 
     // ---------------- software debounce state ----------------
     bool lastButtonState = HIGH;
