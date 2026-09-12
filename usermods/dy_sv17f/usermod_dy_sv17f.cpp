@@ -136,24 +136,48 @@ void UsermodDY_SV17F::sendCmd(uint8_t cmd, uint8_t len, const uint8_t* data) {
 #endif
 }
 
+// JQ6500 uses a completely separate transmitter so the DY-SV17F send path
+// above stays byte-for-byte untouched.
+void UsermodDY_SV17F::sendJQCmd(uint8_t cmd, uint8_t len, const uint8_t* data) {
+  if (!initDone) return;
+
+  // JQ6500 frame: 0x7E [LEN] [CMD] [DATA...] 0xEF, LEN = 2 + len, no checksum
+  uint8_t frame[8];
+  frame[0] = 0x7E;
+  frame[1] = 2 + len;
+  frame[2] = cmd;
+  for (uint8_t i = 0; i < len; i++) frame[3 + i] = data[i];
+  frame[3 + len] = 0xEF;
+
+#if defined(ARDUINO_ARCH_ESP32)
+  dysv17f_serial.write(frame, 3 + len + 1);
+#else
+  if (dysv17f_serial) dysv17f_serial->write(frame, 3 + len + 1);
+#endif
+}
+
 void UsermodDY_SV17F::playTrack(uint16_t track) {
   if (track < 1) track = 1;
   uint8_t data[2] = { (uint8_t)(track >> 8), (uint8_t)(track & 0xFF) }; // big-endian
-  sendCmd(CMD_PLAY, 2, data);
+  if (module == MODULE_JQ6500) sendJQCmd(JQ_CMD_PLAY_IDX, 2, data);
+  else                        sendCmd(CMD_PLAY, 2, data);
 }
 
 void UsermodDY_SV17F::setVolume(uint8_t vol) {
   if (vol > MAX_VOLUME) vol = MAX_VOLUME;
   uint8_t data[1] = { vol };
-  sendCmd(CMD_VOLUME, 1, data);
+  if (module == MODULE_JQ6500) sendJQCmd(JQ_CMD_VOL_SET, 1, data);
+  else                        sendCmd(CMD_VOLUME, 1, data);
 }
 
 void UsermodDY_SV17F::volumeUp() {
-  sendCmd(CMD_VOLUME_UP, 0, nullptr);
+  if (module == MODULE_JQ6500) sendJQCmd(JQ_CMD_VOL_UP, 0, nullptr);
+  else                        sendCmd(CMD_VOLUME_UP, 0, nullptr);
 }
 
 void UsermodDY_SV17F::volumeDown() {
-  sendCmd(CMD_VOLUME_DOWN, 0, nullptr);
+  if (module == MODULE_JQ6500) sendJQCmd(JQ_CMD_VOL_DN, 0, nullptr);
+  else                        sendCmd(CMD_VOLUME_DOWN, 0, nullptr);
 }
 
 void UsermodDY_SV17F::seedRandom() {
