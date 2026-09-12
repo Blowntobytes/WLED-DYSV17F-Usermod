@@ -110,6 +110,11 @@ void UsermodDY_SV17F::handleButton() {
 void UsermodDY_SV17F::triggerPlay() {
   if (numSounds < 1) return;
 
+  // make sure the module is at the configured volume before playing: the
+  // boot-time volume command is often missed while the module is still
+  // powering up its UART, so re-assert it right before every play.
+  setVolume(volume);
+
   if (randomMode) {
     // random track, avoid immediate repeats where possible
     if (numSounds > 1) {
