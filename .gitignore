@@ -1,0 +1,5 @@
+# Build artifacts
+*.bin
+*.elf
+build_output/
+.pio/
