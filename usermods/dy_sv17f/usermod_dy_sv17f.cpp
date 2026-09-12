@@ -22,6 +22,7 @@
 
 const char UsermodDY_SV17F::_name[]        PROGMEM = "MP3 Sound Module";
 const char UsermodDY_SV17F::_enabled[]     PROGMEM = "enabled";
+const char UsermodDY_SV17F::_module[]      PROGMEM = "module";
 const char UsermodDY_SV17F::_volume[]      PROGMEM = "volume";
 const char UsermodDY_SV17F::_numSounds[]   PROGMEM = "numSounds";
 const char UsermodDY_SV17F::_randomMode[]  PROGMEM = "randomMode";
@@ -170,6 +171,9 @@ void UsermodDY_SV17F::addToJsonInfo(JsonObject& root) {
   JsonObject user = root["u"];
   if (user.isNull()) user = root.createNestedObject("u");
 
+  JsonArray mod = user.createNestedArray(FPSTR(_module));
+  mod.add(module == MODULE_JQ6500 ? F("JQ6500") : F("DY-SV17F"));
+
   JsonArray trk = user.createNestedArray(FPSTR(_name));
   trk.add(lastTrack);             // current/last requested track
   trk.add(F("track"));
@@ -185,6 +189,7 @@ void UsermodDY_SV17F::addToJsonInfo(JsonObject& root) {
 void UsermodDY_SV17F::addToConfig(JsonObject& root) {
   JsonObject top = root.createNestedObject(FPSTR(_name));
   top[FPSTR(_enabled)] = enabled;
+  top[FPSTR(_module)] = module;
   top[FPSTR(_volume)] = volume;
   top[FPSTR(_numSounds)] = numSounds;
   top[FPSTR(_randomMode)] = randomMode;
@@ -200,6 +205,7 @@ bool UsermodDY_SV17F::readFromConfig(JsonObject& root) {
   uint8_t oldVolume = volume;
 
   configComplete &= getJsonValue(top[FPSTR(_enabled)], enabled, true);
+  configComplete &= getJsonValue(top[FPSTR(_module)], module, MODULE_DY_SV17F);
   configComplete &= getJsonValue(top[FPSTR(_volume)], volume, 25);
   configComplete &= getJsonValue(top[FPSTR(_numSounds)], numSounds, 9);
   configComplete &= getJsonValue(top[FPSTR(_randomMode)], randomMode, false);
@@ -215,6 +221,18 @@ bool UsermodDY_SV17F::readFromConfig(JsonObject& root) {
 }
 
 void UsermodDY_SV17F::appendConfigData() {
+  oappend(F("addInfo('"));
+  oappend(String(FPSTR(_name)).c_str());
+  oappend(F(":module"));
+  oappend(F("',1,'MP3 module type connected to the UART pins.');"));
+
+  // dropdown for module selection
+  oappend(F("dd=addDropdown('"));
+  oappend(String(FPSTR(_name)).c_str());
+  oappend(F("','module');"));
+  oappend(F("addOption(dd,'DY-SV17F',0);"));
+  oappend(F("addOption(dd,'JQ6500',1);"));
+
   oappend(F("addInfo('"));
   oappend(String(FPSTR(_name)).c_str());
   oappend(F(":volume"));

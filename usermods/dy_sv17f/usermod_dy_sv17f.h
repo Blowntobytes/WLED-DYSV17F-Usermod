@@ -36,6 +36,10 @@ class UsermodDY_SV17F : public Usermod {
 
   private:
 
+    // ---------------- module selection (config only; not used by the UART yet) ----------------
+    static const uint8_t MODULE_DY_SV17F = 0;
+    static const uint8_t MODULE_JQ6500   = 1;
+
     // ---------------- DY-SV17F serial protocol ----------------
     static const uint32_t SERIAL_BAUD     = 9600;   // module runs at 9600 8N1
     static const uint8_t  CMD_PLAY        = 0x07;   // AA 07 02 H L SUM  (play track H*256+L, 1..65535)
@@ -57,7 +61,8 @@ class UsermodDY_SV17F : public Usermod {
     bool debouncedState = HIGH;
     unsigned long lastDebounceTime = 0;
 
-    // ---------------- persistent config (cfg.json -> "um": {"dy_sv17f": {...}}) ----------------
+    // ---------------- persistent config (cfg.json -> "um": {"MP3 Sound Module": {...}}) ----------------
+    uint8_t module = MODULE_DY_SV17F;               // 0 = DY-SV17F, 1 = JQ6500 (reserved)
     uint8_t volume = 25;
     uint16_t numSounds = 9;
     bool randomMode = false;
@@ -68,6 +73,7 @@ class UsermodDY_SV17F : public Usermod {
     // strings reused more than once (saves flash)
     static const char _name[];
     static const char _enabled[];
+    static const char _module[];
     static const char _volume[];
     static const char _numSounds[];
     static const char _randomMode[];
