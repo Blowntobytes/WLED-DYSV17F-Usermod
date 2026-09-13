@@ -11,17 +11,18 @@ Designed for **WLED 16.0.0**. The usermod shows up on the Usermods page as
 **"MP3 Sound Module"**.
 
 ```
-   ┌───────────────────────────────┐
-   │            ESP32              │
-   │   [buttonPin] ────┐           │
-   │   [txPin]  ───────┼───┐       │
-   │   [rxPin]  ───────┼───┼───┐   │
-   └───────────────────┼───┼───┼───┘
-                       │   │   │
-                     ┌─┴───┴───┴─┐
-                     │  MP3 module │
+   ┌────────────────────────────────┐
+   │            ESP32               │
+   │                                │
+   │   [txPin]  ───────────┐        │
+   │   [rxPin]  ───────────┼────┐   │
+   └───────────────────────┼────┼───┘
+                           │    │
+                     ┌─────┴────┴──┐
+                     │     rx   tx │
+                     │ MP3 module  │
                      │ (UART 9600) │
-                     └─────┬─────┘
+                     └─────┬───────┘
                            │
                      ┌─────┴─────┐
                      │  speaker  │
@@ -86,12 +87,6 @@ is optional.
   logic, so wiring is direct, with no level shifter. (Only if you ever drive the
   JQ6500's RX from a 5 V MCU, add a 1 kΩ series resistor on its RX.)
 
-### JQ6500 → UART mode (no special wiring)
-
-The JQ6500 needs **nothing special** to use UART mode — unlike the DY-SV17F it
-has **no mode pads and no resistors to fit**. It runs in serial-control mode by
-default; just leave the `ADKEY` / `K1–K5` button pins unconnected and wire
-`RX`, `TX`, `GND`, `VCC` as in the table above.
 
 ### DY-SV17F → UART mode (hardware)
 
@@ -108,6 +103,13 @@ a hardware step, *not* something the firmware can change. UART mode is `0-0-1`
 
 Some board revisions ship with the resistors already fitted. Once set, use the
 CON1 header (`RX`, `TX`, `VCC`, `GND`) for wiring.
+
+### JQ6500 → UART mode (no special wiring)
+
+The JQ6500 needs **nothing special** to use UART mode — unlike the DY-SV17F it
+has **no mode pads and no resistors to fit**. It runs in serial-control mode by
+default; just leave the `ADKEY` / `K1–K5` button pins unconnected and wire
+`RX`, `TX`, `GND`, `VCC` as in the table above.
 
 ### Push button
 
