@@ -271,4 +271,4 @@ usermods/dy_sv17f/
 └── usermod_dy_sv17f.cpp          # implementation + REGISTER_USERMOD
 ```
 
-Upstream repository: <https://github.com/Blowntobytes/WLED-DYSV17F-Usermod>
+Upstream repository: <https://github.com/Blowntobytes/WLED-MP3-sound-module-Usermod>

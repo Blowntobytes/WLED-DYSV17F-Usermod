@@ -34,4 +34,4 @@ labeled **"MP3 Sound Module"**.
 * Compile-time enable: `-D WLED_USERMOD_DY_SV17F`
 
 See `dy_sv17f/readme.md` for wiring, configuration and the command tables, or the
-upstream repository <https://github.com/Blowntobytes/WLED-DYSV17F-Usermod>.
+upstream repository <https://github.com/Blowntobytes/WLED-MP3-sound-module-Usermod>.
