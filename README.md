@@ -1,6 +1,6 @@
 # WLED MP3 Sound Module Usermod (DY-SV17F / JQ6500)
 
-Plays sound effects from a serial MP3 / voice module, triggered by a physical push
+Plays sound effects from a serial MP3 / voice module, triggered by a physical
 button. Two modules are supported, selected with a dropdown on the
 *Settings → Usermods* page:
 
