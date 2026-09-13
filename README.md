@@ -81,6 +81,17 @@ is optional.
 - On the **ESP8266** the usermod uses `SoftwareSerial`; on ESP32/C3/S2/S3 it uses
   the second hardware UART (`HardwareSerial(1)`), whose pins are remappable to
   almost any GPIO.
+- **Voltage**: the `5V / VIN` column is the module's **power (VCC) only** — do
+  *not* feed 5 V into the RX/TX data lines. The ESP32's UART pins are 3.3 V
+  logic, so wiring is direct, with no level shifter. (Only if you ever drive the
+  JQ6500's RX from a 5 V MCU, add a 1 kΩ series resistor on its RX.)
+
+### JQ6500 → UART mode (no special wiring)
+
+The JQ6500 needs **nothing special** to use UART mode — unlike the DY-SV17F it
+has **no mode pads and no resistors to fit**. It runs in serial-control mode by
+default; just leave the `ADKEY` / `K1–K5` button pins unconnected and wire
+`RX`, `TX`, `GND`, `VCC` as in the table above.
 
 ### DY-SV17F → UART mode (hardware)
 
